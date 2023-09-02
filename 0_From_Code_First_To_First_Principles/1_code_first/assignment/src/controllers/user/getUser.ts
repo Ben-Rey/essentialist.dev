@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+// import { PrismaClient } from "@prisma/client";
+import prisma from "../../prisma/prisma";
 import { Request, Response } from "express";
 
-const userClient = new PrismaClient().user;
 interface QueryParams {
   email: string;
 }
@@ -13,7 +13,7 @@ export async function getUser(
   const { email } = req.query;
 
   try {
-    const user = await userClient.findUnique({
+    const user = await prisma.user.findUnique({
       where: {
         email: email,
       },
@@ -21,10 +21,9 @@ export async function getUser(
 
     if (!user) {
       return res
-        .status(400)
+        .status(404)
         .json({ error: "UserNotFound", data: undefined, success: false });
     }
-
     res.json({
       error: undefined,
       data: {

@@ -1,47 +1,50 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../prisma/prisma";
 import { Request, Response } from "express";
+import { z, ZodError } from "zod";
+import {
+  internalError,
+  emailAlreadyInUse,
+  userNameTaken,
+  validationError,
+} from "../../constant/responses";
 
-const userClient = new PrismaClient().user;
+const createUserSchema = z.object({
+  username: z.string().min(3).max(20),
+  email: z.string().email(),
+  firstName: z.string(),
+  lastName: z.string(),
+});
 
 function generateRandomPassword(): string {
   return Math.random().toString(36).slice(-8);
 }
 
 export async function createUser(req: Request, res: Response) {
-  const { username, email, firstName, lastName } = req.body;
-
-  if (!username || !email || !firstName || !lastName) {
-    return res
-      .status(400)
-      .json({ error: "Please provide all required fields" });
-  }
-
   try {
-    const user = await userClient.findMany({
+    const { username, email, firstName, lastName } = createUserSchema.parse(
+      req.body
+    );
+    if (!username || !email || !firstName || !lastName) {
+      return res
+        .status(400)
+        .json({ error: "ValidationError", data: undefined, success: false });
+    }
+    const user = await prisma.user.findMany({
       where: {
         OR: [{ email: email }, { username: username }],
       },
     });
-
-    if (user.length > 0) {
-      let errorReason;
-
+    if (user) {
       if (user[0].email === email) {
-        errorReason = "EmailAlreadyInUse";
+        return res
+          .status(emailAlreadyInUse.status)
+          .json(emailAlreadyInUse.data);
       }
-
       if (user[0].username === username) {
-        errorReason = "UsernameAlreadyTaken";
+        return res.status(userNameTaken.status).json(userNameTaken.data);
       }
-
-      return res.status(400).json({
-        error: errorReason,
-        data: undefined,
-        success: false,
-      });
     }
-
-    const createdUser = await userClient.create({
+    const createdUser = await prisma.user.create({
       data: {
         username,
         email,
@@ -50,16 +53,15 @@ export async function createUser(req: Request, res: Response) {
         password: generateRandomPassword(),
       },
     });
-
-    return res.json({
+    return res.status(201).json({
       error: undefined,
       data: { id: createdUser.id, email, username, firstName, lastName },
       success: true,
     });
   } catch (error) {
-    console.error("Error querying the database:", error);
-    return res
-      .status(500)
-      .json({ error: "ValidationError", data: undefined, success: false });
+    if (error instanceof ZodError) {
+      return res.status(validationError.status).json(validationError.data);
+    }
+    return res.status(internalError.status).json(internalError.data);
   }
 }
