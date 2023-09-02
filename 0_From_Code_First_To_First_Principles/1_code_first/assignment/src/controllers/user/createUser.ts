@@ -24,26 +24,29 @@ export async function createUser(req: Request, res: Response) {
     const { username, email, firstName, lastName } = createUserSchema.parse(
       req.body
     );
+
     if (!username || !email || !firstName || !lastName) {
-      return res
-        .status(400)
-        .json({ error: "ValidationError", data: undefined, success: false });
+      return res.status(validationError.status).json(validationError.data);
     }
+
     const user = await prisma.user.findMany({
       where: {
         OR: [{ email: email }, { username: username }],
       },
     });
+
     if (user) {
       if (user[0].email === email) {
         return res
           .status(emailAlreadyInUse.status)
           .json(emailAlreadyInUse.data);
       }
+
       if (user[0].username === username) {
         return res.status(userNameTaken.status).json(userNameTaken.data);
       }
     }
+
     const createdUser = await prisma.user.create({
       data: {
         username,
@@ -53,6 +56,7 @@ export async function createUser(req: Request, res: Response) {
         password: generateRandomPassword(),
       },
     });
+
     return res.status(201).json({
       error: undefined,
       data: { id: createdUser.id, email, username, firstName, lastName },

@@ -1,6 +1,16 @@
 // import { PrismaClient } from "@prisma/client";
 import prisma from "../../prisma/prisma";
 import { Request, Response } from "express";
+import { ZodError, z } from "zod";
+import {
+  internalError,
+  userNotFound,
+  validationError,
+} from "../../constant/responses";
+
+const getUserSchema = z.object({
+  email: z.string().email(),
+});
 
 interface QueryParams {
   email: string;
@@ -10,9 +20,9 @@ export async function getUser(
   req: Request<{}, {}, {}, QueryParams>,
   res: Response
 ) {
-  const { email } = req.query;
-
   try {
+    const { email } = getUserSchema.parse(req.query);
+
     const user = await prisma.user.findUnique({
       where: {
         email: email,
@@ -20,10 +30,9 @@ export async function getUser(
     });
 
     if (!user) {
-      return res
-        .status(404)
-        .json({ error: "UserNotFound", data: undefined, success: false });
+      return res.status(userNotFound.status).json(userNotFound.data);
     }
+
     res.json({
       error: undefined,
       data: {
@@ -36,9 +45,10 @@ export async function getUser(
       success: true,
     });
   } catch (error) {
-    console.error("Error querying the database:", error);
-    res
-      .status(500)
-      .json({ error: "ValidationError", data: undefined, success: false });
+    if (error instanceof ZodError) {
+      return res.status(validationError.status).json(validationError.data);
+    }
+
+    return res.status(internalError.status).json(internalError.data);
   }
 }

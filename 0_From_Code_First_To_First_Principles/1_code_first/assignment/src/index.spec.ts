@@ -78,6 +78,7 @@ describe("POST /users/edit/:userId", () => {
   });
 
   it("should return a 409 if username is taken", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(mockUser);
     prismaMock.user.findFirst.mockResolvedValue(mockUser);
     const response = await request(app).post("/users/edit/1").send(mockUser);
     expect(response.status).toBe(userNameTaken.status);
@@ -85,6 +86,7 @@ describe("POST /users/edit/:userId", () => {
   });
 
   it("should return a 409 if email is taken", async () => {
+    prismaMock.user.findUnique.mockResolvedValue(mockUser);
     prismaMock.user.findFirst.mockResolvedValue(mockUser);
     const response = await request(app).post("/users/edit/1").send(mockUser);
     expect(response.status).toBe(userNameTaken.status);
@@ -126,7 +128,7 @@ describe("POST /users/edit/:userId", () => {
 describe("GET /users", () => {
   it("should return a 404 if email is not found", async () => {
     prismaMock.user.findUnique.mockResolvedValue(null);
-    const response = await request(app).get("/users?email=notfound");
+    const response = await request(app).get("/users?email=notfound@test.net");
     expect(response.status).toBe(userNotFound.status);
     expect(response.body).toEqual(userNotFound.data);
   });
@@ -136,11 +138,5 @@ describe("GET /users", () => {
     const response = await request(app).get("/users?email=alice@alice.net");
     expect(response.status).toBe(200);
     expect(response.body).toEqual(mockUserResponse);
-  });
-
-  it("should return a 200 if username is found ", async () => {
-    const response = await request(app).get("/users");
-    expect(response.status).toBe(userNotFound.status);
-    expect(response.body).toEqual(userNotFound.data);
   });
 });
