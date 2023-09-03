@@ -39,3 +39,11 @@ export const userNotFound = {
   status: 404,
   data: { error: "UserNotFound", data: undefined, success: false },
 };
+
+export const success = {
+  data: (data: any) => ({
+    error: undefined,
+    data,
+    success: true,
+  }),
+};
